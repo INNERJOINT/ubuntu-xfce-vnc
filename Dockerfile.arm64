@@ -1,6 +1,6 @@
 # This Dockerfile is used to build an headles vnc image based on Ubuntu
 
-FROM ubuntu@sha256:30fc21bbbbaab3e05531686ef0b725e1f9e7e08df5d6dd64240d094217f0c7cf
+FROM ubuntu:22.04 as stage-ubuntu
 COPY ./qemu-aarch64-static /usr/bin/
 ENV ARCH=aarch64
 
@@ -17,8 +17,12 @@ LABEL io.k8s.description="Headless VNC Container with Xfce window manager, firef
 # VNC port:5901
 # noVNC webport, connect via http://IP:6901/?password=vncpassword
 ENV DISPLAY=:1 \
+    DISPLAY2=:2 \
     VNC_PORT=5901 \
-    NO_VNC_PORT=6901
+    VNC_PORT2=5902 \
+    NO_VNC_PORT=6901 \
+    NO_VNC_PORT2=6902
+    
 EXPOSE $VNC_PORT $NO_VNC_PORT
 
 ### Envrionment config
@@ -29,10 +33,12 @@ ENV HOME=/headless \
     NO_VNC_HOME=/headless/noVNC \
     DEBIAN_FRONTEND=noninteractive \
     VNC_COL_DEPTH=24 \
-    VNC_RESOLUTION=1280x1024 \
+    VNC_RESOLUTION=1920x1080 \
     VNC_PW=vncpassword \
     VNC_VIEW_ONLY=false
 WORKDIR $HOME
+
+FROM stage-ubuntu as stage-install-package
 
 ### Add all install scripts for further steps
 ADD ./src/common/install/ $INST_SCRIPTS/
@@ -57,6 +63,8 @@ RUN $INST_SCRIPTS/firefox_apt.sh
 ### Install xfce UI
 RUN $INST_SCRIPTS/xfce_ui.sh
 ADD ./src/common/xfce/ $HOME/
+
+FROM stage-install-package as stage-install-package
 
 ### configure startup
 RUN $INST_SCRIPTS/libnss_wrapper.sh
